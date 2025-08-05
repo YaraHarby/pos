@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import SaasUser
+from .models import SaasUser, RefreshTokenStore
 # Register your models here.
 class UserAdmin(BaseUserAdmin):
     # The forms to add and change user instances
@@ -45,3 +45,4 @@ admin.site.register(SaasUser, UserAdmin)
 # ... and, since we're not using Django's built-in permissions,
 # unregister the Group model from admin.
 
+admin.site.register(RefreshTokenStore)

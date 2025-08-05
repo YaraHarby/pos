@@ -8,9 +8,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.views import APIView
 from rest_framework.exceptions import ValidationError
 from .import serializers 
-from .models import SaasUser
+from .models import SaasUser, RefreshTokenStore
 from django.template.loader import render_to_string
 from rest_framework.permissions import IsAuthenticated,IsAdminUser
+from tenantusers.models import TenantUser
+from tenantusers.serializers import TenantUserSerializer
+from django_tenants.utils import schema_context
 
 # ----------------
 # Create your views here.
@@ -41,6 +44,9 @@ def Saaslogin(request):
             if user is not None:
                 is_admin = user.is_admin
                 token = get_tokens_for_user(user)
+                RefreshTokenStore.objects.filter(user=user).delete()
+                RefreshTokenStore.objects.create(user=user, token=str(token["refresh"]))
+
                 return Response(
                     {"is_admin": is_admin, "token": token, "msg": "login successfull"},
                     status=status.HTTP_200_OK,
@@ -52,6 +58,23 @@ def Saaslogin(request):
                 )
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+# ----------------------(logout Saas_user _view)-------------------------------------------------
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def logout_view(request):
+    refresh_token = request.data.get("refresh_token")
+
+
+    if not refresh_token:
+        return Response({"detail": "Refresh token is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    deleted, _ = RefreshTokenStore.objects.filter(token=refresh_token).delete()
+    if deleted:
+
+
+        return Response({"message": "Logged out successfully."}, status=status.HTTP_200_OK)
+  
+    return Response({"detail": "No matching refresh token found"}, status=status.HTTP_404_NOT_FOUND)
 
 # ----------------------(userprofile_view)-------------------------------------------------
 
@@ -201,9 +224,91 @@ def update_profile(request):
                 )
             return Response({"msg": ls}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#---------------------------------------------(add tentant user)----------------------------------------
 
 
+
+
+# class TenantUsercreate(APIView):
+#     permission_classes = [IsAuthenticated,IsAdminUser]
+#     def post(self, request):
+#         if not request.user.is_admin:
+#             return Response({"message": "Don't have access"}, status=status.HTTP_403_FORBIDDEN)
+#         serializer = TenantUserSerializer(data=request.data) 
+#         if serializer.is_valid():
+#             serializer.save()
+#             return Response(serializer.data, status=status.HTTP_201_CREATED)
+#         raise ValidationError(serializer.errors)
+
+
+
+
+class TenantUsercreatelistView(generics.ListCreateAPIView):
+    queryset = TenantUser.objects.all()
+    serializer_class = TenantUserSerializer
+    permission_classes = [IsAuthenticated,IsAdminUser]
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAdminUser()]
+        return super().get_permissions()
+    
+    def post(self, request, *args, **kwargs):
+        if not request.user.is_admin:
+            return Response({"message": "Don't have access"}, status=status.HTTP_403_FORBIDDEN)
+        return super().post(request, *args, **kwargs)
+    
+class TenantUserUpdateView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = TenantUser.objects.all()
+    serializer_class = TenantUserSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def get_permissions(self):
+        if self.request.method in ['GET', 'PUT', 'PATCH']:
+            return [IsAdminUser()]
+        return super().get_permissions()
+
+    def perform_update(self, serializer):
+        if not self.request.user.is_admin:
+            raise ValidationError({"message": "Don't have access"})
+        serializer.save()
     
         
+class CreateTenantUserFromSaaS(APIView):
+    def post(self, request, *args, **kwargs):
+        schema_name = request.data.get("schema")  # اسم سكيمة التينانت
+        if not schema_name:
+            return Response({"error": "schema is required"}, status=400)
+
+        try:
+            with schema_context(schema_name):
+                user = TenantUser.objects.create(
+                    username=request.data["username"],
+                    email=request.data["email"],
+                    password=request.data["password"],
+                    role=request.data.get("role", "user"),
+                    is_active=True,
+                )
+                return Response({"status": "created", "id": user.id}, status=201)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+# class TenantUserListView(APIView):
+#     permission_classes = [IsAuthenticated, IsAdminUser]
+
+#     def get(self, request, *args, **kwargs):
+#         schema_name = request.data.get("schema")  
+#         if not schema_name:
+#             return Response({"error": "schema is required"}, status=400)
+
+#         try:
+#             with schema_context(schema_name):
+#                 users = TenantUser.objects.all()
+#                 serializer = TenantUserSerializer(users, many=True)
+#                 return Response(serializer.data, status=200)
+
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=500)
+
 
 

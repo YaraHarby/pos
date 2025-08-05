@@ -34,6 +34,8 @@ TENANT_APPS =[
     'invoicing',
     'reports',
     'shared',
+    'tenantusers',
+
 ]
 SHARED_APPS = [
     'django_tenants',
@@ -70,7 +72,9 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "backend.urls"
+ROOT_URLCONF = "backend.urls_ten"
+PUBLIC_SCHEMA_URLCONF = "backend.urls"
+SHOW_PUPLIC_IF_NO_TENANT_FOUND = True
 
 CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8000",
@@ -166,6 +170,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 STATIC_URL = "static/"
+STATIC_ROOT = os.path.join(BASE_DIR, "static")
+
+
+# Directory where collected static files will be placed for deployment
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field

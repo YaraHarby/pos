@@ -28,6 +28,7 @@ class SaasUseraManager(BaseUserManager):
             username=username,
             password=password,
             is_admin=True,
+            is_superuser=True,
         )
         return user
 
@@ -44,7 +45,7 @@ class SaasUser(AbstractBaseUser):
     Age = models.CharField(max_length=500, default='',null=True, blank=True)
     Gender = models.CharField(max_length=500, default='',null=True, blank=True)
     Address = models.CharField(max_length=500, default='',null=True, blank=True)
-    
+    is_superuser = models.BooleanField(default=True, null=True, blank=True)
     objects = SaasUseraManager()
 
     USERNAME_FIELD = "username"
@@ -68,6 +69,15 @@ class SaasUser(AbstractBaseUser):
         "Is the user a member of staff?"
         # Simplest possible answer: All admins are staff
         return self.is_admin
+
+
+class RefreshTokenStore(models.Model):
+    user = models.ForeignKey(SaasUser, on_delete=models.CASCADE)
+    token = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.token[:10]}"
 
 
 # class Profile(models.Model):

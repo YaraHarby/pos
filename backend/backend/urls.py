@@ -22,12 +22,19 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
     TokenBlacklistView,
 )
+from django.conf import settings
+from django.conf.urls.static import static
+
+
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+
     path('', include('app.urls')),
     path('api/', include('custom_auth.urls')),
     path('ten/', include('tenants.urls')),
+    
+
     # Obtain a pair of access and refresh tokens
     path("token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     # Use the refresh token to get a new access token
@@ -37,3 +44,6 @@ urlpatterns = [
     path("logout/", TokenBlacklistView.as_view(), name="token_blacklist"),
     
 ]
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

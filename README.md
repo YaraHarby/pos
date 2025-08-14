@@ -95,6 +95,11 @@ Authorization: Bearer <jwt_token>
 | DELETE | `/api/saas/users/<id>/` | Delete SaaS admin user by ID   |
 | POST   | `/token/refresh/`       | use refresh to get acces token |
 | POST   | `/api/saas/addtenantusers/`| create Tenant (client) user |
+| POST   | `/ten/clients/`         | list Tenant (client)           |
+| POST   | `/ten/clients/<id>/`    | Retrieve Tenant (client)by saas|
+| PUT    | `/ten/clients/<id>/`    | Update Tenant (client) by saas |
+| DELETE | `/ten/clients/<id>/`    | Delete Tenant (client) by saas |
+| PATCH  | `/ten/clients/<id>`     | Update Tenant (client) by saas |
 ---
 
 ## 🧾 Create a New Client (Tenant)

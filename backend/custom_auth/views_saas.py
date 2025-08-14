@@ -14,6 +14,9 @@ from rest_framework.permissions import IsAuthenticated,IsAdminUser
 from tenantusers.models import TenantUser
 from tenantusers.serializers import TenantUserSerializer
 from django_tenants.utils import schema_context
+from tenantusers.models import TenantUser
+from django.contrib.auth.hashers import check_password
+from tenants.models import Tenant
 
 # ----------------
 # Create your views here.
@@ -26,38 +29,32 @@ def get_tokens_for_user(user):
         "access": str(refresh.access_token),
     }
 
-# ----------------------(login Saas_user _view)-------------------------------------------------
+
+#-------------------(login)-------------------------------------------------
+
 @api_view(["POST"])
 def Saaslogin(request):
+    email = request.data.get("email")
+    password = request.data.get("password")
 
-    if request.method == "POST":
+    if not email or not password:
+        return Response({"msg": "Email and password required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = serializers.SaasuserLoginSerializer(
-            data=request.data, context={"request": request}
-        )
-        if serializer.is_valid(raise_exception=True):
-            username = serializer.data.get("username")
-            password = serializer.data.get("password")
-            # usr = serializer.data.get('user')
-            user = authenticate(username=username, password=password)
+    try:
+        user = SaasUser.objects.get(email=email)
+    except SaasUser.DoesNotExist:
+        return Response({"msg": "Invalid SaaS credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
-            if user is not None:
-                is_admin = user.is_admin
-                token = get_tokens_for_user(user)
-                RefreshTokenStore.objects.filter(user=user).delete()
-                RefreshTokenStore.objects.create(user=user, token=str(token["refresh"]))
+    if check_password(password, user.password):
+        token = get_tokens_for_user(user)
+        return Response({"token": token, "msg": "SaaS login successful"}, status=status.HTTP_200_OK)
+    else:
+        return Response({"msg": "Invalid SaaS credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
-                return Response(
-                    {"is_admin": is_admin, "token": token, "msg": "login successfull"},
-                    status=status.HTTP_200_OK,
-                )
-            else:
-                return Response(
-                    {"msg": "invalid username or password"},
-                    status=status.HTTP_401_UNAUTHORIZED,
-                )
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+        
 # ----------------------(logout Saas_user _view)-------------------------------------------------
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -224,91 +221,34 @@ def update_profile(request):
                 )
             return Response({"msg": ls}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-#---------------------------------------------(add tentant user)----------------------------------------
 
-
-
-
-# class TenantUsercreate(APIView):
-#     permission_classes = [IsAuthenticated,IsAdminUser]
-#     def post(self, request):
-#         if not request.user.is_admin:
-#             return Response({"message": "Don't have access"}, status=status.HTTP_403_FORBIDDEN)
-#         serializer = TenantUserSerializer(data=request.data) 
-#         if serializer.is_valid():
-#             serializer.save()
-#             return Response(serializer.data, status=status.HTTP_201_CREATED)
-#         raise ValidationError(serializer.errors)
-
-
-
-
-class TenantUsercreatelistView(generics.ListCreateAPIView):
-    queryset = TenantUser.objects.all()
-    serializer_class = TenantUserSerializer
-    permission_classes = [IsAuthenticated,IsAdminUser]
-    def get_permissions(self):
-        if self.request.method == 'GET':
-            return [IsAdminUser()]
-        return super().get_permissions()
-    
-    def post(self, request, *args, **kwargs):
-        if not request.user.is_admin:
-            return Response({"message": "Don't have access"}, status=status.HTTP_403_FORBIDDEN)
-        return super().post(request, *args, **kwargs)
-    
-class TenantUserUpdateView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = TenantUser.objects.all()
-    serializer_class = TenantUserSerializer
-    permission_classes = [IsAuthenticated, IsAdminUser]
-
-    def get_permissions(self):
-        if self.request.method in ['GET', 'PUT', 'PATCH']:
-            return [IsAdminUser()]
-        return super().get_permissions()
-
-    def perform_update(self, serializer):
-        if not self.request.user.is_admin:
-            raise ValidationError({"message": "Don't have access"})
-        serializer.save()
-    
-        
 class CreateTenantUserFromSaaS(APIView):
     def post(self, request, *args, **kwargs):
-        schema_name = request.data.get("schema")  # اسم سكيمة التينانت
+        schema_name = request.data.get("schema") 
         if not schema_name:
             return Response({"error": "schema is required"}, status=400)
 
         try:
             with schema_context(schema_name):
-                user = TenantUser.objects.create(
-                    username=request.data["username"],
-                    email=request.data["email"],
-                    password=request.data["password"],
-                    role=request.data.get("role", "user"),
-                    is_active=True,
-                )
-                return Response({"status": "created", "id": user.id}, status=201)
+                # Get the tenant instance
+                tenant = Tenant.objects.get(schema_name=schema_name)
+
+                if tenant.no_users > 0:
+                    # Decrement allowed user count
+                    tenant.no_users -= 1
+                    tenant.save(update_fields=["no_users"])
+                    user = TenantUser.objects.create(
+                        username=request.data["username"],
+                        email=request.data["email"],
+                        password=request.data["password"],
+                        role=request.data.get("role", "user"),
+                        is_active=True,
+                    )
+                    return Response({"status": "created", "id": user.id}, status=201)
+                else: 
+                    return Response({"error": "number of users is exceeded"}, status=400)
 
         except Exception as e:
             return Response({"error": str(e)}, status=500)
-
-# class TenantUserListView(APIView):
-#     permission_classes = [IsAuthenticated, IsAdminUser]
-
-#     def get(self, request, *args, **kwargs):
-#         schema_name = request.data.get("schema")  
-#         if not schema_name:
-#             return Response({"error": "schema is required"}, status=400)
-
-#         try:
-#             with schema_context(schema_name):
-#                 users = TenantUser.objects.all()
-#                 serializer = TenantUserSerializer(users, many=True)
-#                 return Response(serializer.data, status=200)
-
-#         except Exception as e:
-#             return Response({"error": str(e)}, status=500)
-
 
 

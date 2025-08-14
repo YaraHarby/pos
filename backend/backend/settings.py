@@ -48,7 +48,6 @@ SHARED_APPS = [
     'corsheaders',
     'rest_framework',
     "rest_framework_simplejwt",
-    "rest_framework_simplejwt.token_blacklist",
     "tenants",
     "custom_auth"
 ]
@@ -59,6 +58,7 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     )
 }
+
 
 MIDDLEWARE = [
     'django_tenants.middleware.main.TenantMainMiddleware',  
@@ -131,7 +131,8 @@ DATABASES = {
     }
 }
 
-AUTH_USER_MODEL = 'custom_auth.SaasUser'
+
+AUTH_USER_MODEL = "custom_auth.SaasUser"
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators

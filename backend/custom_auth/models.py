@@ -48,8 +48,8 @@ class SaasUser(AbstractBaseUser):
     is_superuser = models.BooleanField(default=True, null=True, blank=True)
     objects = SaasUseraManager()
 
-    USERNAME_FIELD = "username"
-    REQUIRED_FIELDS = ["email"]
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["username"]
 
     def str(self):
         return self.username
@@ -117,4 +117,7 @@ class RefreshTokenStore(models.Model):
 #         "Does the user have a specific permission?"
 #         # Simplest possible answer: Yes, always
 #         return self.is_authenticated
+
+
+
     

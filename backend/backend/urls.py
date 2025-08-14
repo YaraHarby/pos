@@ -41,7 +41,7 @@ urlpatterns = [
     path(
         "token/refresh/", TokenRefreshView.as_view(), name="token_refresh"
     ),  # url to get new access token by refresh token
-    path("logout/", TokenBlacklistView.as_view(), name="token_blacklist"),
+    
     
 ]
 if settings.DEBUG:

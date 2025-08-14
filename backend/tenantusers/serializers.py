@@ -1,5 +1,7 @@
+# serializers.py
 from rest_framework import serializers
-from .models import TenantUser
+from .models import TenantUser,Branch
+
 class TenantUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = TenantUser
@@ -18,4 +20,19 @@ class TenantUserSerializer(serializers.ModelSerializer):
         user.set_password(validated_data['password'])
         user.save()
         return user
-    
+
+
+class TenantUserLoginSerializer(serializers.Serializer):
+    email = serializers.EmailField(max_length=255)
+    password = serializers.CharField(write_only=True)
+
+class BranchSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Branch
+        fields = [
+            "id",
+            "name",
+            "contact_email",
+            "contact_phone",
+        ]

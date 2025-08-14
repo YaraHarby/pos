@@ -56,7 +56,7 @@ Listing all clients/tenants via the `GET /api/tenants/` endpoint requires SaaS a
 
 ```json
 {
-  "username": "admin",
+  "email": "example@ex.com",
   "password": "admin123"
 }
 ```
@@ -65,12 +65,15 @@ Listing all clients/tenants via the `GET /api/tenants/` endpoint requires SaaS a
 
 ```json
 {
-  "token": "<jwt_token>",
-  "username": "admin"
+    "token": {
+        "refresh": "",
+        "access": ""
+    },
+    "msg": "SaaS login successful"
 }
 ```
 
-**Use this token in all further requests:**
+**Use this access token in all further requests:**
 
 ```
 Authorization: Bearer <jwt_token>
@@ -85,11 +88,13 @@ Authorization: Bearer <jwt_token>
 | POST   | `/api/saas/login/`      | Login SaaS admin               |
 | POST   | `/api/saas/logout/`     | Logout SaaS admin              |
 | GET    | `/api/saas/me/`         | Get current SaaS admin info    |
+| POST   | `/api/saas/users/`      | add new Saas admin             |
 | GET    | `/api/saas/users/`      | List all SaaS admin users      |
 | GET    | `/api/saas/users/<id>/` | Retrieve SaaS admin user by ID |
 | PUT    | `/api/saas/users/<id>/` | Update SaaS admin user by ID   |
 | DELETE | `/api/saas/users/<id>/` | Delete SaaS admin user by ID   |
-
+| POST   | `/token/refresh/`       | use refresh to get acces token |
+| POST   | `/api/saas/addtenantusers/`| create Tenant (client) user |
 ---
 
 ## 🧾 Create a New Client (Tenant)
@@ -106,17 +111,29 @@ Authorization: Bearer <jwt_token>
 **Request JSON:**
 
 ```json
-{
-  "name": "My Supermarket",
-  "subscription_plan": "trial",
-  "contact_email": "super@example.com",
-  "contact_phone": "987654321",
-  "domain": "supermarket.al-mohasseb.com",
-  "subdomain": "supermarket",
-  "paid_until": "2025-07-26",
-  "on_trial": true,
-  "modules_enabled": ["sales", "products"]
-}
+    {
+        "id": 1,
+        "arabic_name": "اخري",
+        "english_name": "other",
+        "Commercial_Record": 123,
+        "subdomain": "other",
+        "Subscription_Price": "767.23",
+        "Currency": "SAR",
+        "Start_Date": "2025-08-01",
+        "End_Date": "2030-01-01",
+        "on_trial": true,
+        "image": null,
+        "is_active": true,
+        "no_users": 1,
+        "modules_enabled": {
+            "kitchen": false,
+            "reports": false,
+            "sellers": true,
+            "Delivery": false
+        },
+        "Activity_Type": "other",
+        "no_branches": 1
+    }
 ```
 
 **Note:**
@@ -124,20 +141,7 @@ Authorization: Bearer <jwt_token>
 * `subdomain` is used to generate `schema_name` (must be lowercase, alphanumeric, start with a letter).
 * You can optionally include `branches` as a nested list.
 
-**Example with branches:**
 
-```json
-{
-  ...,
-  "branches": [
-    {
-      "name": "Main Branch",
-      "contact_email": "branch@example.com",
-      "contact_phone": "999999999"
-    }
-  ]
-}
-```
 
 **Response:**
 
@@ -145,7 +149,6 @@ Authorization: Bearer <jwt_token>
 {
   "id": 8,
   "name": "My Supermarket",
-  "branches": []
   // ... other fields
 }
 ```

@@ -1,6 +1,6 @@
 from rest_framework import generics, permissions
 from rest_framework.decorators import api_view ,permission_classes
-from .models import Tenant, Branch, Domain, Client
+from .models import Tenant, Domain, Client
 from . import serializers
 from rest_framework.response import Response
 # from . permissions import IsManger
@@ -32,21 +32,6 @@ class TenantDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 
-class BranchListCreateView(generics.ListCreateAPIView):
-    """List branches or create a new one."""
-
-    queryset = Branch.objects.all()
-    serializer_class = serializers.BranchSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-
-class BranchDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """Retrieve, update or delete a branch."""
-
-    queryset = Branch.objects.all()
-    serializer_class = serializers.BranchSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
 class DominListCreateView(generics.ListCreateAPIView):
     """List domains or create a new one."""
 
@@ -77,6 +62,7 @@ class ClientDetailView(generics.RetrieveUpdateDestroyAPIView):
         if self.request.method in {"GET", "PATCH", "DELETE","PUT"}:
             return [permissions.IsAuthenticated(), permissions.IsAdminUser()]
         return [permissions.IsAuthenticated()]
+
 
 
 

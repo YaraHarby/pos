@@ -13,6 +13,9 @@ urlpatterns = [
     path('saas/deletemyaccount/',views_saas.delete_account),
     path('saas/updateprofile/',views_saas.update_profile),
     path('saas/addtenantusers/', views_saas.CreateTenantUserFromSaaS.as_view(), name='create-tenant-user-from-saas'),
+
+
+    
     # path('saas/listtenantusers/', views_saas.TenantUserListView.as_view(), name='tenant_user_list'),
 
 

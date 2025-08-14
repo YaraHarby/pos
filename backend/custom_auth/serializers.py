@@ -18,15 +18,12 @@ saasuser = SaasUser()
 # class saas
 
 # ---------------------------------(login)-------------------------------------
-
-
-class SaasuserLoginSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(max_length=255)
+class SaasLoginSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(max_length=255)
 
     class Meta:
         model = SaasUser
-        fields = ["username", "password", "is_admin"]
-
+        fields = ["email", "password", "is_admin"]
 
 # ---------------------------------(user-profile)-------------------------------------
 
@@ -115,3 +112,4 @@ class SaasUserSerializer(serializers.ModelSerializer):
             instance.set_password(password)
         instance.save()
         return instance
+

@@ -30,11 +30,10 @@ TENANT_APPS =[
     'products',
     'sales',
     'kitchen',
-    'purchases_expenses',
     'invoicing',
     'reports',
-    'shared',
     'tenantusers',
+    'customer',
 
 ]
 SHARED_APPS = [

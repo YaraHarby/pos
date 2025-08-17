@@ -14,6 +14,9 @@ from django.contrib.auth.hashers import check_password
 from .authentication import TenantJWTAuthentication
 from .models import Branch
 from tenants.models import Tenant
+from django.db import connection
+from django_tenants.utils import schema_context
+
 
 
 
@@ -70,17 +73,25 @@ class TenantUsercreatelistView(generics.ListCreateAPIView):
     authentication_classes = [TenantJWTAuthentication]
     queryset = TenantUser.objects.all()
     serializer_class = serializers.TenantUserSerializer
+    def perform_create(self, serializer):
+        current_schema = connection.schema_name
+        with schema_context('public'):
+            try:
+                tenant = Tenant.objects.get(schema_name=current_schema)
+            except Tenant.DoesNotExist:
+                raise ValueError("Tenant not found")  # DRF will convert to 500 unless you handle
+
+            if tenant.no_users <= 0:
+                # raise DRF validation error for a clean 400
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({"error": "Number of users exceeded"})
+
+            tenant.no_users -= 1
+            tenant.save(update_fields=["no_users"])
+
+        serializer.save()
+
     def get_permissions(self):
-        if self.request.method == "POST":
-            tenant = Tenant()
-            if tenant.no_users > 0:
-
-                tenant.no_users -= 1
-                tenant.save(update_fields=["no_users"])
-                return [IsAuthenticated(), IsManager()]
-            else:
-                return Response({"error": "number of users is exceeded"}, status=400)
-
         if self.request.method == 'GET':
             return [IsAuthenticated(),IsManager()]
         return super().get_permissions()
@@ -102,23 +113,31 @@ class TenantUserDetailView(generics.RetrieveUpdateDestroyAPIView):
     
 #-------------------------------------(create , list branches)-------------------------------------------------------------------
     
-class branchCreateListView(generics.ListCreateAPIView):
+class BranchCreateListView(generics.ListCreateAPIView):
     authentication_classes = [TenantJWTAuthentication]
     queryset = Branch.objects.all()
     serializer_class = serializers.BranchSerializer
-    
     permission_classes = [IsAuthenticated, IsManager]
 
-    def get_permissions(self):
-        if self.request.method == "POST":
-            tenant = Tenant()
-            if tenant.no_branches > 0:
+    def perform_create(self, serializer):
+        current_schema = connection.schema_name
+        with schema_context('public'):
+            try:
+                tenant = Tenant.objects.get(schema_name=current_schema)
+            except Tenant.DoesNotExist:
+                raise ValueError("Tenant not found")  # DRF will convert to 500 unless you handle
 
-                tenant.no_branches -= 1
-                tenant.save(update_fields=["no_branches"])
-                return [IsAuthenticated(), IsManager()]
-            else:
-                return Response({"error": "number of branches is exceeded"}, status=400)
+            if tenant.no_branches <= 0:
+                # raise DRF validation error for a clean 400
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({"error": "Number of branches exceeded"})
+
+            tenant.no_branches -= 1
+            tenant.save(update_fields=["no_branches"])
+
+        serializer.save()
+
+    def get_permissions(self):
         if self.request.method == 'GET':
             return [IsAuthenticated(), IsManager()]
         return super().get_permissions()
@@ -134,26 +153,8 @@ class branchDetailView(generics.RetrieveUpdateDestroyAPIView):
         if self.request.method in {"GET", "PATCH", "DELETE", "PUT"}:
             return [IsAuthenticated(), IsManager()]
         return super().get_permissions()
-    
 
-
-from django_tenants.utils import schema_context
-from tenants.models import Tenant
-
-@api_view(["POST"])
-def add_branch_for_tenant(request):
-    # 1. أضف بيانات الفرع الجديد داخل tenant schema الحالي
-    branch = Branch.objects.create(
-        name=request.data["name"],
-        contact_email = request.data["contact_email"],
-        contact_phone = request.data["contact_phone"]
-    )
-
-    # 2. حدّث عدد الفروع في جدول Tenant داخل public schema
-    current_schema = connection.schema_name
-    with schema_context('public'):
-        tenant = Tenant.objects.get(schema_name=current_schema)
-        tenant.no_branches += 1
-        tenant.save(update_fields=["no_branches"])
-
-    return Response({"message": "تم إضافة الفرع بنجاح"})
+#-------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------
+#-------------------------------------(seller and manager)-------------------------------------------------------------------                                                

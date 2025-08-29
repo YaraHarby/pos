@@ -27,7 +27,6 @@ ALLOWED_HOSTS = []
 # Application definition
 TENANT_APPS =[
     'app',
-    'products',
     'sales',
     'kitchen',
     'invoicing',

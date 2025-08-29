@@ -16,7 +16,7 @@ class TenantUser(AbstractBaseUser):
         ('Seller', 'Seller'),
         ('kitchen', 'Kitchen'),
         ('delivery', 'Delivery'),
-    ], default='user')
+    ], default='Manager')
     is_active = models.BooleanField(default=True)
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]

@@ -16,6 +16,8 @@ from .models import Branch
 from tenants.models import Tenant
 from django.db import connection
 from django_tenants.utils import schema_context
+from rest_framework.views import APIView
+
 
 
 
@@ -38,41 +40,38 @@ def get_tokens_for_user(user):
         "refresh": str(refresh),
         "access": str(refresh.access_token),
     }
-#-----------------------------------(login)--------------------------------------------------------
+#-----------------------------------(login)-------------------------------------------------------
+
 @api_view(["POST"])
 def login(request):
     email = request.data.get("email")
     password = request.data.get("password")
 
     if not email or not password:
-
         return Response({"msg": "Email and password required"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         user = TenantUser.objects.get(email=email)
-        print(user)
     except TenantUser.DoesNotExist:
-        print("one")
         return Response({"msg": "Invalid Tenant credentials"}, status=status.HTTP_401_UNAUTHORIZED)
-    
-    print(password==user.password)
-    if password==user.password:
-        print("three")
+
+    # ✅ Use check_password instead of == comparison
+    if check_password(password, user.password):
         token = get_tokens_for_user(user)
 
         # Remove old refresh tokens
         tenRefreshTokenStore.objects.filter(user=user).delete()
         tenRefreshTokenStore.objects.create(user=user, token=token["refresh"])
 
-        return Response({"token": token, "msg": "Tenant login successful"}, status=status.HTTP_200_OK)
+        return Response({"role":user.role,"token": token, "msg": "User login successful"}, status=status.HTTP_200_OK)
     else:
-        print("two")
         return Response({"msg": "Invalid Tenant credentials"}, status=status.HTTP_401_UNAUTHORIZED)
-#-------------------------------------(create , list users)-------------------------------------------------------------------
+
+#---------------------------------------------------------------------------------------------
 class TenantUsercreatelistView(generics.ListCreateAPIView):
     authentication_classes = [TenantJWTAuthentication]
     queryset = TenantUser.objects.all()
-    serializer_class = serializers.TenantUserSerializer
+    serializer_class = serializers.addTenantUserSerializer
     def perform_create(self, serializer):
         current_schema = connection.schema_name
         with schema_context('public'):
@@ -102,9 +101,21 @@ class TenantUserDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = TenantUser.objects.all()
     serializer_class = serializers.TenantUserSerializer
     permission_classes = [IsAuthenticated, IsManager]
+    def perform_destroy(self, serializer):
+        current_schema = connection.schema_name
+        with schema_context('public'):
+            try:
+                tenant = Tenant.objects.get(schema_name=current_schema)
+            except Tenant.DoesNotExist:
+                raise ValueError("Tenant not found")  # DRF will convert to 500 unless you handle
 
+            # when deleting, free up a slot
+            tenant.no_users += 1
+            tenant.save(update_fields=["no_users"])
+
+        serializer.delete()  # <-- not save(), call delete to actually delete the object
     def get_permissions(self):
-        if self.request.method in {"GET", "PATCH", "DELETE", "PUT"}:
+        if self.request.method in {"GET", "PATCH", "PUT"}:
             return [IsAuthenticated(), IsManager()]
         return super().get_permissions()
     
@@ -148,9 +159,22 @@ class branchDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Branch.objects.all()
     serializer_class = serializers.BranchSerializer
     permission_classes = [IsAuthenticated, IsManager]
+    def perform_destroy(self, serializer):
+        current_schema = connection.schema_name
+        with schema_context('public'):
+            try:
+                tenant = Tenant.objects.get(schema_name=current_schema)
+            except Tenant.DoesNotExist:
+                raise ValueError("Tenant not found")  # DRF will convert to 500 unless you handle
+
+            # when deleting, free up a slot
+            tenant.no_branches += 1
+            tenant.save(update_fields=["no_branches"])
+
+        serializer.delete()  # <-- not save(), call delete to actually delete the object
 
     def get_permissions(self):
-        if self.request.method in {"GET", "PATCH", "DELETE", "PUT"}:
+        if self.request.method in {"GET", "PATCH", "PUT"}:
             return [IsAuthenticated(), IsManager()]
         return super().get_permissions()
 

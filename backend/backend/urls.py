@@ -33,6 +33,7 @@ urlpatterns = [
     path('', include('app.urls')),
     path('api/', include('custom_auth.urls')),
     path('ten/', include('tenants.urls')),
+
     
 
     # Obtain a pair of access and refresh tokens

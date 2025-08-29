@@ -17,6 +17,7 @@ from django_tenants.utils import schema_context
 from tenantusers.models import TenantUser
 from django.contrib.auth.hashers import check_password
 from tenants.models import Tenant
+from django.contrib.auth.hashers import make_password
 
 # ----------------
 # Create your views here.
@@ -221,6 +222,8 @@ def update_profile(request):
                 )
             return Response({"msg": ls}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#--------------------------------------------------------------------------------------
+
 
 class CreateTenantUserFromSaaS(APIView):
     def post(self, request, *args, **kwargs):
@@ -237,10 +240,11 @@ class CreateTenantUserFromSaaS(APIView):
                     # Decrement allowed user count
                     tenant.no_users -= 1
                     tenant.save(update_fields=["no_users"])
+
                     user = TenantUser.objects.create(
                         username=request.data["username"],
                         email=request.data["email"],
-                        password=request.data["password"],
+                        password=make_password(request.data["password"]), 
                         role=request.data.get("role", "user"),
                         is_active=True,
                     )
@@ -250,5 +254,6 @@ class CreateTenantUserFromSaaS(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=500)
+
 
 

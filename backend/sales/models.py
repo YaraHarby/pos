@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 from tenantusers.models import TenantUser
+from django.utils import timezone
 # from customer.models import Customer
 
 
@@ -91,6 +92,7 @@ class Order (models.Model):
         ('credit','credit')
     ])
     date = models.DateTimeField(auto_now_add=True)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
@@ -112,10 +114,140 @@ class Receipt (models.Model):
     receiver = models.CharField(max_length = 255)
     date = models.DateTimeField(auto_now_add=True)
     attachment = models.FileField(upload_to="uploads/")
+    
+
+
+class PurchaseOrder(models.Model):
+    supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True)
+    expected_delivery = models.DateTimeField()
+    status = models.CharField(
+        max_length=20,
+        choices=[('Pending', 'Pending'), ('Confirmed', 'Confirmed'), ('Delivered', 'Delivered'),('Cancelled','Cancelled')],
+        default='Pending'
+    )
+    notes = models.TextField(blank=True, null=True)
+    # total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    def __str__(self):
+        return f"PO-{self.id} ({self.status})"
+
+
+class PurchaseOrderItem(models.Model):
+    purchase_order = models.ForeignKey(PurchaseOrder, related_name="items", on_delete=models.CASCADE)
+    item_name = models.CharField(max_length=255)
+    quantity = models.PositiveIntegerField(default=1)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    def save(self, *args, **kwargs):
+        self.subtotal = self.quantity * self.unit_price
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.item_name} x {self.quantity}"
 
 
 
+class Invoice(models.Model):
+    STATUS_CHOICES = [
+        ('Pending', 'Pending'),
+        ('Paid', 'Paid'),
+        ('Cancelled', 'Cancelled'),
+        ('overdue', 'overdue')
+    ]
 
+    PAYMENT_METHODS = [
+        ('Cash', 'Cash'),
+        ('Bank Transfer', 'Bank Transfer'),
+        ('CreditCard', 'CreditCard'),
+        ('Check','Check')
+    ]
+
+    supplier = models.ForeignKey("Supplier", on_delete=models.CASCADE, related_name="invoices")
+    order_id = models.CharField(max_length=100)
+    issue_date = models.DateField(default=timezone.now)
+    due_date = models.DateField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
+    payment_method = models.CharField(max_length=30, choices=PAYMENT_METHODS, default='Cash')
+    notes = models.TextField(blank=True, null=True)
+
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    tax = models.DecimalField(max_digits=5, decimal_places=2, default=0)  # percentage %
+    total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def calculate_totals(self):
+        subtotal = sum(item.quantity * item.unit_price for item in self.items.all())
+        total = subtotal + (subtotal * (self.tax / 100))
+        self.subtotal = subtotal
+        self.total = total
+        self.save()
+
+    def __str__(self):
+        return f"Invoice #{self.id} - {self.supplier.supplier_name}"
+
+
+class InvoiceItem(models.Model):
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="items")
+    item_name = models.CharField(max_length=200)
+    quantity = models.PositiveIntegerField(default=1)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    def subtotal(self):
+        return self.quantity * self.unit_price
+
+    def __str__(self):
+        return f"{self.item_name} ({self.quantity}x)"
+    
+class Returns_of_supplier (models.Model):
+    supplier = models.ForeignKey(Supplier,on_delete=models.CASCADE)
+    purchase_item = models.ForeignKey(PurchaseOrderItem,on_delete = models.CASCADE)
+    invoice = models.ForeignKey(Invoice,on_delete = models.CASCADE,blank = True, null = True)
+    return_date = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=[('Pending', 'Pending'), ('Approved', 'Approved'), ('Rejected', 'Rejected')], default='Pending')
+    refund_method = models.CharField(max_length=100, choices=[('Cash', 'Cash'), ('Bank Transfer', 'Bank Transfer'), ('Check', 'Check')], default='Cash')
+    quantity = models.IntegerField()
+    return_reason = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True,blank = True, null = True)
+    notes = models.TextField(blank=True, null=True)
+
+
+class Voucher(models.Model):
+    VOUCHER_TYPES = [
+        ('Supplier', 'Supplier Payment'),
+        ('Expense', 'Expense Payment'),
+    ]
+
+    PAYMENT_METHODS = [
+        ('Cash', 'Cash'),
+        ('Bank Transfer', 'Bank Transfer'),
+        ('Check', 'Check'),
+        ('CreditCard', 'CreditCard'),
+    ]
+
+    voucher_number = models.CharField(max_length=100, unique=True)
+    voucher_type = models.CharField(max_length=20, choices=VOUCHER_TYPES)
+
+    date = models.DateField()
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    payment_method = models.CharField(max_length=30, choices=PAYMENT_METHODS, default="Cash")
+
+    # Supplier voucher
+    supplier = models.ForeignKey("Supplier", on_delete=models.CASCADE, null=True, blank=True)
+
+    # Expense voucher
+    category = models.CharField(max_length=50, null=True, blank=True)
+    recipient = models.CharField(max_length=255, null=True, blank=True)
+
+    description = models.TextField(blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+    attachment = models.FileField(upload_to="vouchers/", blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.voucher_type} Voucher {self.voucher_number} - {self.amount}"
 
 
 

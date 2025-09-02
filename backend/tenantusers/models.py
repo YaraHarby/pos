@@ -12,10 +12,10 @@ class TenantUser(AbstractBaseUser):
     email = models.EmailField(unique=True)
     password = models.CharField(max_length=128)
     role = models.CharField(max_length=50, choices=[
-        ('manager', 'Manager'),
+        ('Manager', 'Manager'),
         ('Seller', 'Seller'),
         ('kitchen', 'Kitchen'),
-        ('delivery', 'Delivery'),
+        ('Delivery', 'Delivery'),
     ], default='Manager')
     is_active = models.BooleanField(default=True)
     USERNAME_FIELD = "email"

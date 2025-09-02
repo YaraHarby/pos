@@ -18,9 +18,11 @@ class IsSeller(BasePermission):
                     and request.user.is_authenticated 
                     and
                     getattr(request.user, 'role', None) == 'Seller')    
-# class IsAdminorManager(BasePermission):
-
-#     def has_permission(self, request, view):
-#         return bool(request.user and request.user.is_authenticated 
-#                     and
-#                     (getattr(request.user, 'role', None) == 'manager' or request.user.is_superuser))
+    
+    
+class IsSellerOrManager(BasePermission):
+    def has_permission(self, request, view):
+        return bool(
+            request.user and request.user.is_authenticated and 
+            (getattr(request.user, 'role', None) in ['Seller', 'Manager'])
+        )

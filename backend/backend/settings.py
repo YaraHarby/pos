@@ -29,7 +29,6 @@ TENANT_APPS =[
     'app',
     'sales',
     'kitchen',
-    'invoicing',
     'reports',
     'tenantusers',
     'customer',

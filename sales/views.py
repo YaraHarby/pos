@@ -3,7 +3,7 @@ from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated 
 from .models import Product,Voucher, Returns_of_supplier,Supplier,Order,Receipt,PurchaseOrder,Invoice
 from . import serializers
-from tenantusers.permissions import IsSeller,IsSellerOrManager
+from tenantusers.permissions import IsSeller,IsSellerOrManager,TenantModulePermission
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
 from rest_framework import status, generics,permissions
@@ -53,14 +53,14 @@ class orderCreateListView(generics.ListCreateAPIView):
     authentication_classes = [TenantJWTAuthentication]
     queryset = Order.objects.all()
     serializer_class = serializers.OrderSerializer
-    permission_classes = [IsAuthenticated, IsSeller,IsSellerOrManager]
+    permission_classes = [IsAuthenticated, IsSeller,TenantModulePermission]
     def perform_create(self, serializer):
         serializer.save()
         return [IsAuthenticated(), IsSeller()]
 
     def get_permissions(self):
         if self.request.method == 'GET':
-            return [IsAuthenticated(), IsSellerOrManager()]
+            return [IsAuthenticated(), TenantModulePermission()]
         return super().get_permissions()
 
 #---------------------------------------------------------------------------------------
@@ -68,10 +68,10 @@ class orderDetailView(generics.RetrieveUpdateDestroyAPIView):
     authentication_classes = [TenantJWTAuthentication]
     queryset = Order.objects.all()
     serializer_class = serializers.OrderSerializer
-    permission_classes = [IsAuthenticated, IsSellerOrManager]
+    permission_classes = [IsAuthenticated, TenantModulePermission]
     def get_permissions(self):
         if self.request.method in {"GET", "PATCH", "PUT"}:
-            return [IsAuthenticated(), IsSellerOrManager()]
+            return [IsAuthenticated(), TenantModulePermission()]
         return super().get_permissions()
 
 class Receiptcraetelistview(generics.ListCreateAPIView):

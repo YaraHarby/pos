@@ -29,9 +29,9 @@ TENANT_APPS =[
     'app',
     'sales',
     'kitchen',
-    'reports',
     'tenantusers',
     'customer',
+    'delivery',
 
 ]
 SHARED_APPS = [
@@ -56,6 +56,11 @@ REST_FRAMEWORK = {
     )
 }
 
+
+AUTHENTICATION_BACKENDS = [
+    'tenantusers.authentication.TenantActiveBackend',  # our custom backend
+    'django.contrib.auth.backends.ModelBackend',  # default fallback
+]
 
 MIDDLEWARE = [
     'django_tenants.middleware.main.TenantMainMiddleware',  

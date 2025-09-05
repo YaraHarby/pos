@@ -3,7 +3,7 @@ from rest_framework import serializers
 from .models import TenantUser,Branch
 
 
-class addTenantUserSerializer(serializers.ModelSerializer):
+class AddTenantUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = TenantUser
         fields = [
@@ -14,6 +14,30 @@ class addTenantUserSerializer(serializers.ModelSerializer):
             "password",
         ]
         extra_kwargs = {"password": {"write_only": True}}
+
+    def validate_role(self, value):
+        # خذ الـ tenant من request
+        tenant = getattr(self.context['request'], 'tenant', None)
+        if not tenant:
+            raise serializers.ValidationError("Tenant not found.")
+
+        # Manager و Seller مسموح لهم دائمًا
+        if value in ["Manager", "Seller"]:
+            return value
+
+        # تحقق من modules_enabled
+        modules_enabled = tenant.modules_enabled or {}
+        role_map = {
+            "kitchen": "kitchen",
+            "Delivery": "Delivery"
+        }
+
+        module_key = role_map.get(value)
+        if module_key and not modules_enabled.get(module_key, False):
+            raise serializers.ValidationError(f"Tenant does not allow adding users with role '{value}'.")
+
+        return value
+
     def create(self, validated_data):
         password = validated_data.pop("password", None)
         instance = self.Meta.model(**validated_data)
@@ -21,7 +45,6 @@ class addTenantUserSerializer(serializers.ModelSerializer):
             instance.set_password(password)
         instance.save()
         return instance
-
 
 
 

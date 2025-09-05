@@ -78,13 +78,7 @@ class Order (models.Model):
     customer = models.ForeignKey("customer.Customer", on_delete=models.CASCADE,null = True)
     seller = models.ForeignKey(TenantUser, on_delete=models.CASCADE)
 
-    status = models.CharField(max_length=250,choices=[
-        ('pending','pending'),
-        ('processing','processing'),
-        ('completed','completed'),
-        ('cancelled','cancelled')
-
-    ] )
+    status = models.CharField(max_length=250)
     payment_type = models.CharField(max_length=250,choices=[
         ('cash','cash'),
         ('card','card'),

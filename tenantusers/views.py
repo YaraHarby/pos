@@ -3,7 +3,7 @@ from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated 
 from .models import TenantUser
 from . import serializers
-from .permissions import IsManager
+from .permissions import IsManager,TenantModulePermission
 from rest_framework_simplejwt.tokens import RefreshToken
 from . models import TenantUser, tenRefreshTokenStore
 from rest_framework.response import Response
@@ -17,6 +17,7 @@ from tenants.models import Tenant
 from django.db import connection
 from django_tenants.utils import schema_context
 from rest_framework.views import APIView
+from django.utils import timezone
 
 
 
@@ -54,8 +55,11 @@ def login(request):
         user = TenantUser.objects.get(email=email)
     except TenantUser.DoesNotExist:
         return Response({"msg": "Invalid Tenant credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+    
+    tenant = getattr(request, "tenant", None)
+    if tenant and tenant.End_Date and tenant.End_Date < timezone.now().date():
+        return Response({"msg": "Tenant subscription has expired"}, status=status.HTTP_403_FORBIDDEN)
 
-    # ✅ Use check_password instead of == comparison
     if check_password(password, user.password):
         token = get_tokens_for_user(user)
 
@@ -71,7 +75,7 @@ def login(request):
 class TenantUsercreatelistView(generics.ListCreateAPIView):
     authentication_classes = [TenantJWTAuthentication]
     queryset = TenantUser.objects.all()
-    serializer_class = serializers.addTenantUserSerializer
+    serializer_class = serializers.AddTenantUserSerializer
     def perform_create(self, serializer):
         current_schema = connection.schema_name
         with schema_context('public'):
@@ -84,7 +88,17 @@ class TenantUsercreatelistView(generics.ListCreateAPIView):
                 # raise DRF validation error for a clean 400
                 from rest_framework.exceptions import ValidationError
                 raise ValidationError({"error": "Number of users exceeded"})
-
+            user_role = serializer.validated_data.get("role")
+            if user_role not in ["Manager", "Seller"]:  # Manager و Seller دائمًا مسموح لهم
+                role_map = {
+                    "kitchen": "kitchen",
+                    "Delivery": "Delivery"
+                }
+                module_key = role_map.get(user_role)
+                if module_key and not tenant.modules_enabled.get(module_key, False):
+                    raise ValidationError({
+                        "role": f"Tenant does not allow adding users with role '{user_role}'."
+                    })
             tenant.no_users -= 1
             tenant.save(update_fields=["no_users"])
 
@@ -100,7 +114,7 @@ class TenantUserDetailView(generics.RetrieveUpdateDestroyAPIView):
     authentication_classes = [TenantJWTAuthentication]
     queryset = TenantUser.objects.all()
     serializer_class = serializers.TenantUserSerializer
-    permission_classes = [IsAuthenticated, IsManager]
+    permission_classes = [IsAuthenticated, TenantModulePermission]
     def perform_destroy(self, serializer):
         current_schema = connection.schema_name
         with schema_context('public'):
@@ -116,7 +130,7 @@ class TenantUserDetailView(generics.RetrieveUpdateDestroyAPIView):
         serializer.delete()  # <-- not save(), call delete to actually delete the object
     def get_permissions(self):
         if self.request.method in {"GET", "PATCH", "PUT"}:
-            return [IsAuthenticated(), IsManager()]
+            return [IsAuthenticated(), TenantModulePermission()]
         return super().get_permissions()
     
 

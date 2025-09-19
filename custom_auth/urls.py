@@ -13,6 +13,16 @@ urlpatterns = [
     path('saas/deletemyaccount/',views_saas.delete_account),
     path('saas/updateprofile/',views_saas.update_profile),
     path('saas/addtenantusers/', views_saas.CreateTenantUserFromSaaS.as_view(), name='create-tenant-user-from-saas'),
+    path("saas/managers/", views_saas.list_managers, name="list-managers"),
+    path("saas/updatemanagers/<int:user_id>/", views_saas.update_manager, name="update-manager"),
+    path("saas/deletemanagers/<int:user_id>/", views_saas.delete_manager, name="delete-manager"),
+    path("saas/managers/<int:user_id>/", views_saas.retrive_one_manager, name="retrieve-one-manager"),
+
+
+
+
+    # path('saas/addtenantusers/', views_saas.CreateTenantUserFromSaaS.as_view(), name='create-tenant-user-from-saas'),
+
 
 
     

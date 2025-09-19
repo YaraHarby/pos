@@ -14,10 +14,11 @@ from rest_framework.permissions import IsAuthenticated,IsAdminUser
 from tenantusers.models import TenantUser
 from tenantusers.serializers import TenantUserSerializer
 from django_tenants.utils import schema_context
-from tenantusers.models import TenantUser
 from django.contrib.auth.hashers import check_password
 from tenants.models import Tenant
 from django.contrib.auth.hashers import make_password
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 
 # ----------------
 # Create your views here.
@@ -48,6 +49,7 @@ def Saaslogin(request):
 
     if check_password(password, user.password):
         token = get_tokens_for_user(user)
+        RefreshTokenStore.objects.create(user=user, token=token["refresh"])
         return Response({"token": token, "msg": "SaaS login successful"}, status=status.HTTP_200_OK)
     else:
         return Response({"msg": "Invalid SaaS credentials"}, status=status.HTTP_401_UNAUTHORIZED)
@@ -224,7 +226,6 @@ def update_profile(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 #--------------------------------------------------------------------------------------
 
-
 class CreateTenantUserFromSaaS(APIView):
     def post(self, request, *args, **kwargs):
         schema_name = request.data.get("schema") 
@@ -254,6 +255,101 @@ class CreateTenantUserFromSaaS(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=500)
+        
 
 
+@api_view(["GET"])
+@permission_classes([IsAdminUser])  # only SaaS admins
+def list_managers(request):
+    schema_name = request.query_params.get("schema")
 
+    if not schema_name:
+        return Response({"error": "schema is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        # check if tenant exists in public schema
+        tenant = Tenant.objects.get(schema_name=schema_name)
+    except Tenant.DoesNotExist:
+        return Response({"error": "Tenant not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        with schema_context(schema_name):
+
+            managers = TenantUser.objects.filter(role="Manager", is_active=True)
+            serializer = TenantUserSerializer(managers, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+@api_view(["PUT", "PATCH"])
+@permission_classes([IsAdminUser])
+def update_manager(request, user_id):
+    schema_name = request.query_params.get("schema")
+
+    if not schema_name:
+        return Response({"error": "schema is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        tenant = Tenant.objects.get(schema_name=schema_name)
+    except Tenant.DoesNotExist:
+        return Response({"error": "Tenant not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    with schema_context(schema_name):
+        try:
+            user = TenantUser.objects.get(id=user_id, role="Manager")
+        except TenantUser.DoesNotExist:
+            return Response({"error": "Manager not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = TenantUserSerializer(user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+@api_view(["DELETE"])
+@permission_classes([IsAdminUser])
+def delete_manager(request, user_id):
+    schema_name = request.query_params.get("schema")
+
+    if not schema_name:
+        return Response({"error": "schema is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        tenant = Tenant.objects.get(schema_name=schema_name)
+    except Tenant.DoesNotExist:
+        return Response({"error": "Tenant not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    with schema_context(schema_name):
+        try:
+            user = TenantUser.objects.get(id=user_id, role="Manager")
+        except TenantUser.DoesNotExist:
+            return Response({"error": "Manager not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        user.delete()
+        return Response({"message": "Manager deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def retrive_one_manager(request, user_id):
+    schema_name = request.query_params.get("schema")
+
+    if not schema_name:
+        return Response({"error": "schema is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        tenant = Tenant.objects.get(schema_name=schema_name)
+    except Tenant.DoesNotExist:
+        return Response({"error": "Tenant not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    with schema_context(schema_name):
+        try:
+            user = TenantUser.objects.get(id=user_id, role="Manager")
+        except TenantUser.DoesNotExist:
+            return Response({"error": "Manager not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = TenantUserSerializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)

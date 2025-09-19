@@ -4,17 +4,12 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Product,Voucher, Returns_of_supplier,Supplier,Order,Receipt,PurchaseOrder,Invoice
 from . import serializers
 from tenantusers.permissions import IsSeller,IsSellerOrManager,TenantModulePermission
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.response import Response
-from rest_framework import status, generics,permissions
+from rest_framework import generics
 from django.contrib.auth import authenticate
 from rest_framework.decorators import api_view ,permission_classes
 from django.contrib.auth.hashers import check_password
 from tenantusers.authentication import TenantJWTAuthentication
-from tenants.models import Tenant
-from django.db import connection
-from django_tenants.utils import schema_context
-from rest_framework.views import APIView
+
 
 class ProductCreateListView(generics.ListCreateAPIView):
     authentication_classes = [TenantJWTAuthentication]

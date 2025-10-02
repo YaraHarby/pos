@@ -123,24 +123,24 @@ class PurchaseOrderListCreateView(generics.ListCreateAPIView):
     authentication_classes = [TenantJWTAuthentication]
     queryset = PurchaseOrder.objects.all()
     serializer_class = serializers.PurchaseOrderSerializer
-    permission_classes = [IsAuthenticated, IsSeller]
+    permission_classes = [IsAuthenticated, IsSellerOrManager]
     def perform_create(self, serializer):
         serializer.save()
-        return [IsAuthenticated(), IsSeller()]
+        return [IsAuthenticated(), IsSellerOrManager()]
 
     def get_permissions(self):
         if self.request.method == 'GET':
-            return [IsAuthenticated(), IsSeller()]
+            return [IsAuthenticated(), IsSellerOrManager()]
         return super().get_permissions()
     
 class PurchaseDetailView(generics.RetrieveUpdateDestroyAPIView):
     authentication_classes = [TenantJWTAuthentication]
     queryset = PurchaseOrder.objects.all()
     serializer_class = serializers.PurchaseOrderSerializer
-    permission_classes = [IsAuthenticated, IsSeller]
+    permission_classes = [IsAuthenticated, IsSellerOrManager]
     def get_permissions(self):
         if self.request.method in {"GET", "PATCH", "PUT"}:
-            return [IsAuthenticated(), IsSeller()]
+            return [IsAuthenticated(), IsSellerOrManager()]
         return super().get_permissions()
 
 class InvoiceListCreateView(generics.ListCreateAPIView):
